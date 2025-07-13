@@ -1,46 +1,64 @@
-name: Collect HTV coins
+name: HTV Coin Collector
+
 on:
   schedule:
-    - cron: "0 */1 * * *"
+    # Run every day at 12:00 UTC
+    - cron: '0 12 * * *'
+  # Allow manual trigger
   workflow_dispatch:
 
-env:
-  HTV_EMAIL: "${{ secrets.HTV_EMAIL }}"
-  HTV_PASSWORD: "${{ secrets.HTV_PASSWORD }}"
-
 jobs:
-  build:
+  collect-and-update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.ref }}
-      
-      - uses: styfle/cancel-workflow-action@0.9.0
-        name: "Cancelling duplicate workflow runs"
-        with:
-          all_but_latest: true
-          access_token: ${{ github.token }}
-      
-      - name: Install Dependencies
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up environment
         run: |
-          sudo apt upgrade -y && sudo apt update -y
-          sudo apt install -y curl openssl jq
-      
-      - name: Create activity log
-        run: date +'%s' > .github/activity
-      
-      - name: Collect Coins
-        timeout-minutes: 1
+          sudo apt-get update
+          sudo apt-get install -y jq curl openssl
+
+      - name: Run coin collector script
+        env:
+          HTV_EMAIL: ${{ secrets.HTV_EMAIL }}
+          HTV_PASSWORD: ${{ secrets.HTV_PASSWORD }}
         run: |
           chmod +x coins.sh
-          ./coins.sh
-      
-      - name: Commit and Push
+          ./coins.sh > script_output.txt
+
+      - name: Create activity file
         run: |
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}
-          git add .
-          git commit -m "Auto update: $(date +'%Y-%m-%d %H:%M:%S')"
-          git push origin HEAD:${{ github.ref }}
+          # Create a directory for logs if it doesn't exist
+          mkdir -p activity_logs
+          
+          # Get current timestamp
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          
+          # Extract coin information from script output if available
+          COIN_INFO=$(grep "Coins count:" script_output.txt || echo "Coin information not available")
+          RECEIVED_COINS=$(grep "You received" script_output.txt || echo "No new coins received")
+          
+          # Create the activity file with timestamp and coin information
+          echo "Last run: $TIMESTAMP" > activity_logs/activity_$(date '+%Y%m%d').txt
+          echo "----------------------------------------" >> activity_logs/activity_$(date '+%Y%m%d').txt
+          echo "$COIN_INFO" >> activity_logs/activity_$(date '+%Y%m%d').txt
+          echo "$RECEIVED_COINS" >> activity_logs/activity_$(date '+%Y%m%d').txt
+          
+          # Create/update a summary file with the latest info
+          echo "# HTV Coins Activity Log" > activity_summary.txt
+          echo "Last updated: $TIMESTAMP" >> activity_summary.txt
+          echo "----------------------------------------" >> activity_summary.txt
+          echo "$COIN_INFO" >> activity_summary.txt
+          echo "$RECEIVED_COINS" >> activity_summary.txt
+          echo "----------------------------------------" >> activity_summary.txt
+          echo "This file is automatically updated to maintain GitHub Actions workflow activity." >> activity_summary.txt
+
+      - name: Commit and push if there are changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update activity logs [skip ci]"
+          file_pattern: activity_logs/* activity_summary.txt
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@github.com"
+          commit_author: "GitHub Actions <actions@github.com>"
