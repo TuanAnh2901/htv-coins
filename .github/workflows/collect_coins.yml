@@ -1,96 +1,96 @@
-name: HTV Coin Collector
+# name: HTV Coin Collector
 
-on:
-  schedule:
-    # Run every 3 hours
-    - cron: '0 */3 * * *'
-  # Allow manual trigger
-  workflow_dispatch:
+# on:
+#   schedule:
+#     # Run every 3 hours
+#     - cron: '0 */3 * * *'
+#   # Allow manual trigger
+#   workflow_dispatch:
 
-permissions:
-  contents: write
+# permissions:
+#   contents: write
 
-jobs:
-  collect-and-update:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+# jobs:
+#   collect-and-update:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3
 
-      - name: Set up environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl openssl
+#       - name: Set up environment
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y jq curl openssl
 
-      - name: Run coin collector script
-        env:
-          HTV_EMAIL: ${{ secrets.HTV_EMAIL }}
-          HTV_PASSWORD: ${{ secrets.HTV_PASSWORD }}
-        run: |
-          chmod +x coins.sh
-          ./coins.sh > script_output.txt
+#       - name: Run coin collector script
+#         env:
+#           HTV_EMAIL: ${{ secrets.HTV_EMAIL }}
+#           HTV_PASSWORD: ${{ secrets.HTV_PASSWORD }}
+#         run: |
+#           chmod +x coins.sh
+#           ./coins.sh > script_output.txt
 
-      - name: Manage activity logs and create new entry
-        run: |
-          # Create activity_logs directory if it doesn't exist
-          mkdir -p activity_logs
+#       - name: Manage activity logs and create new entry
+#         run: |
+#           # Create activity_logs directory if it doesn't exist
+#           mkdir -p activity_logs
           
-          # Get current timestamp
-          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S UTC')
-          CURRENT_DATE=$(date '+%Y%m%d_%H%M%S')
+#           # Get current timestamp
+#           TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S UTC')
+#           CURRENT_DATE=$(date '+%Y%m%d_%H%M%S')
           
-          # Extract coin information from script output if available
-          COIN_INFO=$(grep "Coins count:" script_output.txt || echo "Coin information not available")
-          RECEIVED_COINS=$(grep "You received" script_output.txt || echo "No new coins received")
+#           # Extract coin information from script output if available
+#           COIN_INFO=$(grep "Coins count:" script_output.txt || echo "Coin information not available")
+#           RECEIVED_COINS=$(grep "You received" script_output.txt || echo "No new coins received")
           
-          # Create the new activity file with timestamp and coin information
-          NEW_LOG_FILE="activity_logs/activity_${CURRENT_DATE}.txt"
-          echo "Run time: $TIMESTAMP" > "$NEW_LOG_FILE"
-          echo "----------------------------------------" >> "$NEW_LOG_FILE"
-          echo "$COIN_INFO" >> "$NEW_LOG_FILE"
-          echo "$RECEIVED_COINS" >> "$NEW_LOG_FILE"
-          echo "----------------------------------------" >> "$NEW_LOG_FILE"
-          echo "Workflow run completed successfully" >> "$NEW_LOG_FILE"
+#           # Create the new activity file with timestamp and coin information
+#           NEW_LOG_FILE="activity_logs/activity_${CURRENT_DATE}.txt"
+#           echo "Run time: $TIMESTAMP" > "$NEW_LOG_FILE"
+#           echo "----------------------------------------" >> "$NEW_LOG_FILE"
+#           echo "$COIN_INFO" >> "$NEW_LOG_FILE"
+#           echo "$RECEIVED_COINS" >> "$NEW_LOG_FILE"
+#           echo "----------------------------------------" >> "$NEW_LOG_FILE"
+#           echo "Workflow run completed successfully" >> "$NEW_LOG_FILE"
           
-          # Count current log files
-          LOG_COUNT=$(ls -1 activity_logs/activity_*.txt 2>/dev/null | wc -l)
-          echo "Current log file count: $LOG_COUNT"
+#           # Count current log files
+#           LOG_COUNT=$(ls -1 activity_logs/activity_*.txt 2>/dev/null | wc -l)
+#           echo "Current log file count: $LOG_COUNT"
           
-          # If we have more than 10 files, remove the oldest ones
-          MAX_FILES=10
-          if [ "$LOG_COUNT" -gt "$MAX_FILES" ]; then
-            echo "Exceeded maximum of $MAX_FILES files. Cleaning up oldest files..."
+#           # If we have more than 10 files, remove the oldest ones
+#           MAX_FILES=10
+#           if [ "$LOG_COUNT" -gt "$MAX_FILES" ]; then
+#             echo "Exceeded maximum of $MAX_FILES files. Cleaning up oldest files..."
             
-            # Get list of files sorted by modification time (oldest first)
-            # Remove the excess files
-            FILES_TO_REMOVE=$((LOG_COUNT - MAX_FILES))
-            ls -1t activity_logs/activity_*.txt | tail -n "$FILES_TO_REMOVE" | while read file; do
-              echo "Removing old log file: $file"
-              rm "$file"
-            done
-          fi
+#             # Get list of files sorted by modification time (oldest first)
+#             # Remove the excess files
+#             FILES_TO_REMOVE=$((LOG_COUNT - MAX_FILES))
+#             ls -1t activity_logs/activity_*.txt | tail -n "$FILES_TO_REMOVE" | while read file; do
+#               echo "Removing old log file: $file"
+#               rm "$file"
+#             done
+#           fi
           
-          # Update the summary file with the latest info
-          echo "# HTV Coins Activity Log Summary" > activity_summary.txt
-          echo "Last updated: $TIMESTAMP" >> activity_summary.txt
-          echo "Total log files maintained: $(ls -1 activity_logs/activity_*.txt 2>/dev/null | wc -l)" >> activity_summary.txt
-          echo "----------------------------------------" >> activity_summary.txt
-          echo "$COIN_INFO" >> activity_summary.txt
-          echo "$RECEIVED_COINS" >> activity_summary.txt
-          echo "----------------------------------------" >> activity_summary.txt
-          echo "Recent activity files:" >> activity_summary.txt
-          ls -1t activity_logs/activity_*.txt 2>/dev/null | head -5 | while read file; do
-            echo "- $(basename "$file")" >> activity_summary.txt
-          done
-          echo "----------------------------------------" >> activity_summary.txt
-          echo "This file is automatically updated to maintain GitHub Actions workflow activity." >> activity_summary.txt
-          echo "Maximum log files maintained: $MAX_FILES" >> activity_summary.txt
+#           # Update the summary file with the latest info
+#           echo "# HTV Coins Activity Log Summary" > activity_summary.txt
+#           echo "Last updated: $TIMESTAMP" >> activity_summary.txt
+#           echo "Total log files maintained: $(ls -1 activity_logs/activity_*.txt 2>/dev/null | wc -l)" >> activity_summary.txt
+#           echo "----------------------------------------" >> activity_summary.txt
+#           echo "$COIN_INFO" >> activity_summary.txt
+#           echo "$RECEIVED_COINS" >> activity_summary.txt
+#           echo "----------------------------------------" >> activity_summary.txt
+#           echo "Recent activity files:" >> activity_summary.txt
+#           ls -1t activity_logs/activity_*.txt 2>/dev/null | head -5 | while read file; do
+#             echo "- $(basename "$file")" >> activity_summary.txt
+#           done
+#           echo "----------------------------------------" >> activity_summary.txt
+#           echo "This file is automatically updated to maintain GitHub Actions workflow activity." >> activity_summary.txt
+#           echo "Maximum log files maintained: $MAX_FILES" >> activity_summary.txt
 
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "Update activity logs [skip ci] - $(date '+%Y-%m-%d %H:%M:%S')"
-          file_pattern: activity_logs/* activity_summary.txt
-          commit_user_name: "GitHub Actions"
-          commit_user_email: "actions@github.com"
-          commit_author: "GitHub Actions <actions@github.com>"
+#       - name: Commit and push changes
+#         uses: stefanzweifel/git-auto-commit-action@v4
+#         with:
+#           commit_message: "Update activity logs [skip ci] - $(date '+%Y-%m-%d %H:%M:%S')"
+#           file_pattern: activity_logs/* activity_summary.txt
+#           commit_user_name: "GitHub Actions"
+#           commit_user_email: "actions@github.com"
+#           commit_author: "GitHub Actions <actions@github.com>"
